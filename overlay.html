@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Overlay</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="chrome" class="chrome">
+    <div class="title">Overlay</div>
+    <div class="spacer"></div>
+    <div id="hint">⌥⇧J/K scroll — ⌥⇧T toggle click-through</div>
+    <button id="close">✕</button>
+  </div>
+
+  <div id="glass" class="glass">
+    <div id="mirror" class="mirror"></div>
+    <webview id="web" class="web" allowpopups></webview>
+  </div>
+
+  <script src="./overlay.js"></script>
+</body>
+</html>
