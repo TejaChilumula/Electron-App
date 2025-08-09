@@ -110,22 +110,24 @@ html,body{
 
 
 
+/* Make text column a bit narrower (ChatGPT-ish measure) */
+.mirror { white-space: normal; }
+.mirror .md { max-width: 620px; }
 
-/* Block spacing that feels closer to ChatGPT */
-.mirror p        { margin: 8px 0 10px; }
-.mirror h1       { font-size: 1.25rem; margin: 12px 0 8px; font-weight: 600; }
-.mirror h2       { font-size: 1.15rem; margin: 10px 0 8px; font-weight: 600; }
-.mirror h3       { font-size: 1.05rem; margin: 8px 0 6px;  font-weight: 600; }
-.mirror h4,h5,h6 { font-size: 1rem;    margin: 8px 0 6px;  font-weight: 600; }
+/* Tighter vertical rhythm */
+.mirror p        { margin: 6px 0 8px; }
+.mirror h1       { font-size: 1.22rem; margin: 10px 0 6px; font-weight: 600; }
+.mirror h2       { font-size: 1.14rem; margin: 8px 0 6px;  font-weight: 600; }
+.mirror h3       { font-size: 1.06rem; margin: 6px 0 4px;  font-weight: 600; }
 
 .mirror ul, .mirror ol {
-  margin: 6px 0 10px 1.2em;
-  padding: 0 0 0 1em;
+  margin: 4px 0 8px 1.1em;
+  padding-left: 1em;
 }
-.mirror li { margin: 4px 0; }
+.mirror li { margin: 3px 0; }
 
 .mirror blockquote {
-  margin: 8px 0 10px;
+  margin: 6px 0 8px;
   padding: 6px 10px;
   border-left: 3px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.04);
@@ -135,10 +137,10 @@ html,body{
 .mirror hr {
   border: 0;
   border-top: 1px solid rgba(255,255,255,0.15);
-  margin: 12px 0;
+  margin: 10px 0;
 }
 
-/* You already have these, but they work great with the new blocks */
+/* Keep your existing code styles */
 .mirror pre {
   background:#0b0f14;
   border:1px solid #1f2632;
@@ -157,3 +159,4 @@ html,body{
   border-radius:6px;
   padding:2px 6px;
 }
+

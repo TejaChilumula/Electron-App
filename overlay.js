@@ -22,83 +22,103 @@ function setStatus(txt, color) {
 
 // lite markdown renderer (bold/italic/inline + fenced)
 // --- smarter markdown renderer: paragraphs, lists, headings, quotes + inline ---
+// --- smarter markdown renderer: paragraphs, lists, headings, quotes + inline ---
 function renderLiteMD(src) {
   if (!src) return '';
 
-  // 1) pull out fenced code blocks first
+  // Normalize newlines (CRLF → LF)
+  src = src.replace(/\r\n?/g, '\n').trim();
+
+  // 1) extract fenced code blocks first
   const fences = [];
   src = src.replace(/```([\w+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const i = fences.push({ lang, code }) - 1;
-    return `\uFFF0${i}\uFFF1`; // placeholder
+    const i = fences.push({ lang: lang || '', code }) - 1;
+    return `\uFFF0${i}\uFFF1`; // placeholder token
   });
 
   const esc = s => s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
-
-  // inline: backticks, **bold**, *italic*
   const inline = s =>
     esc(s)
       .replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-  // 2) split into blocks by blank lines
-  const blocks = src.trim().split(/\n{2,}/);
-
+  // 2) line-by-line block parser (handles lists without blank-line guards)
+  const lines = src.split('\n');
   const out = [];
+  let buf = [];                   // current paragraph buffer
 
-  for (let b of blocks) {
-    // restore placeholders inside this block later
-    // (we only treat as placeholder if the whole block is a placeholder)
-    if (/^\uFFF0\d+\uFFF1$/.test(b)) {
-      const i = +b.slice(1, -1); // remove markers
-      const { lang, code } = fences[i];
-      out.push(
-        `<pre><code data-lang="${esc(lang||'')}">${esc(code)}</code></pre>`
-      );
+  const flushPara = () => {
+    if (!buf.length) return;
+    const text = buf.join(' ').replace(/\s+/g, ' ').trim();
+    if (text) out.push(`<p>${inline(text)}</p>`);
+    buf = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i];
+
+    // code placeholder as a standalone block
+    const ph = L.match(/^\uFFF0(\d+)\uFFF1$/);
+    if (ph) {
+      flushPara();
+      const { lang, code } = fences[+ph[1]];
+      out.push(`<pre><code data-lang="${esc(lang)}">${esc(code)}</code></pre>`);
       continue;
     }
 
-    // Headings: # .. ######
-    const h = b.match(/^(#{1,6})\s+(.+)$/s);
+    // blank line → paragraph break
+    if (/^\s*$/.test(L)) { flushPara(); continue; }
+
+    // heading
+    const h = L.match(/^(#{1,6})\s+(.+)$/);
     if (h) {
+      flushPara();
       const level = h[1].length;
       out.push(`<h${level}>${inline(h[2].trim())}</h${level}>`);
       continue;
     }
 
-    // Blockquote: lines starting with >
-    if (/^>\s+/.test(b)) {
-      const inner = b.replace(/^>\s?/gm, '');             // strip leading >
-      const para  = inline(inner.replace(/\n+/g, ' '));   // join lines inside quote
-      out.push(`<blockquote><p>${para}</p></blockquote>`);
-      continue;
-    }
-
-    // Lists: unordered or ordered (simple, non-nested)
-    if (/^(?:[-*+]\s+.+|\d+\.\s+.+)(?:\n.+)*$/m.test(b)) {
-      const isOrdered = /^\d+\.\s+/.test(b.trim());
-      const tag = isOrdered ? 'ol' : 'ul';
-      const items = [];
-      const re = isOrdered ? /^\s*\d+\.\s+(.+)$/gm : /^\s*[-*+]\s+(.+)$/gm;
-      let m;
-      while ((m = re.exec(b)) !== null) {
-        // keep soft line breaks inside item
-        items.push(`<li>${inline(m[1].replace(/\n+/g, '<br>'))}</li>`);
+    // blockquote (consume consecutive > lines)
+    if (/^\s*>\s?/.test(L)) {
+      flushPara();
+      let q = L.replace(/^\s*>\s?/, '');
+      while (i + 1 < lines.length && /^\s*>\s?/.test(lines[i + 1])) {
+        q += ' ' + lines[++i].replace(/^\s*>\s?/, '');
       }
-      out.push(`<${tag}>${items.join('')}</${tag}>`);
+      out.push(`<blockquote><p>${inline(q.replace(/\s+/g, ' ').trim())}</p></blockquote>`);
       continue;
     }
 
-    // Horizontal rule
-    if (/^-{3,}$/.test(b.trim())) { out.push('<hr>'); continue; }
+    // list (ordered or unordered) — consume contiguous items
+    if (/^\s*(?:[-*+]\s+|\d+\.\s+)/.test(L)) {
+      flushPara();
+      const isOrdered = /^\s*\d+\.\s+/.test(L);
+      const re = isOrdered ? /^\s*\d+\.\s+(.+)$/ : /^\s*[-*+]\s+(.+)$/;
+      const items = [];
+      let j = i;
+      while (j < lines.length && re.test(lines[j])) {
+        const m = re.exec(lines[j]); items.push(m[1]);
+        j++;
+      }
+      i = j - 1; // advance
+      out.push(
+        (isOrdered ? '<ol>' : '<ul>') +
+        items.map(t => `<li>${inline(t.trim())}</li>`).join('') +
+        (isOrdered ? '</ol>' : '</ul>')
+      );
+      continue;
+    }
 
-    // Paragraph (default): join single newlines to spaces
-    out.push(`<p>${inline(b.replace(/\n+/g, ' '))}</p>`);
+    // default: accumulate paragraph
+    buf.push(L.trim());
   }
+  flushPara();
 
-  // 3) done
-  return out.join('\n');
+  // 3) wrap for styling and return
+  return `<div class="md">${out.join('\n')}</div>`;
 }
+
 
 
 // websocket
