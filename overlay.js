@@ -25,15 +25,13 @@ function setStatus(txt, color) {
 // --- smarter markdown renderer: paragraphs, lists, headings, quotes + inline ---
 function renderLiteMD(src) {
   if (!src) return '';
-
-  // Normalize newlines (CRLF → LF)
   src = src.replace(/\r\n?/g, '\n').trim();
 
-  // 1) extract fenced code blocks first
+  // Pull out fenced code blocks first
   const fences = [];
   src = src.replace(/```([\w+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const i = fences.push({ lang: lang || '', code }) - 1;
-    return `\uFFF0${i}\uFFF1`; // placeholder token
+    return `\uFFF0${i}\uFFF1`;
   });
 
   const esc = s => s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
@@ -41,12 +39,11 @@ function renderLiteMD(src) {
     esc(s)
       .replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>`');
 
-  // 2) line-by-line block parser (handles lists without blank-line guards)
   const lines = src.split('\n');
   const out = [];
-  let buf = [];                   // current paragraph buffer
+  let buf = [];
 
   const flushPara = () => {
     if (!buf.length) return;
@@ -56,9 +53,10 @@ function renderLiteMD(src) {
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const L = lines[i];
+    const Lraw = lines[i];
+    const L = Lraw;
 
-    // code placeholder as a standalone block
+    // code placeholder as its own block
     const ph = L.match(/^\uFFF0(\d+)\uFFF1$/);
     if (ph) {
       flushPara();
@@ -70,7 +68,7 @@ function renderLiteMD(src) {
     // blank line → paragraph break
     if (/^\s*$/.test(L)) { flushPara(); continue; }
 
-    // heading
+    // headings
     const h = L.match(/^(#{1,6})\s+(.+)$/);
     if (h) {
       flushPara();
@@ -79,7 +77,7 @@ function renderLiteMD(src) {
       continue;
     }
 
-    // blockquote (consume consecutive > lines)
+    // blockquote (consume consecutive)
     if (/^\s*>\s?/.test(L)) {
       flushPara();
       let q = L.replace(/^\s*>\s?/, '');
@@ -90,7 +88,7 @@ function renderLiteMD(src) {
       continue;
     }
 
-    // list (ordered or unordered) — consume contiguous items
+    // lists (consume contiguous items)
     if (/^\s*(?:[-*+]\s+|\d+\.\s+)/.test(L)) {
       flushPara();
       const isOrdered = /^\s*\d+\.\s+/.test(L);
@@ -98,26 +96,36 @@ function renderLiteMD(src) {
       const items = [];
       let j = i;
       while (j < lines.length && re.test(lines[j])) {
-        const m = re.exec(lines[j]); items.push(m[1]);
+        const m = re.exec(lines[j]);
+        items.push(`<li>${inline(m[1].trim())}</li>`);
         j++;
       }
-      i = j - 1; // advance
-      out.push(
-        (isOrdered ? '<ol>' : '<ul>') +
-        items.map(t => `<li>${inline(t.trim())}</li>`).join('') +
-        (isOrdered ? '</ol>' : '</ul>')
-      );
+      i = j - 1;
+      out.push(`${isOrdered ? '<ol>' : '<ul>'}${items.join('')}${isOrdered ? '</ol>' : '</ul>'}`);
       continue;
     }
 
     // default: accumulate paragraph
-    buf.push(L.trim());
+    const trimmed = L.trim();
+    buf.push(trimmed);
+
+    // HEURISTIC: paragraph break even without blank line
+    // If this line ends a sentence and the next line starts a new “blocky” start,
+    // split paragraphs. Helps with ChatGPT text that has single newlines.
+    const next = lines[i + 1];
+    if (
+      next && !/^\s*$/.test(next) &&
+      /[.!?)]\s*$/.test(trimmed) &&
+      /^[A-Z>#`0-9*-]/.test(next.trim())
+    ) {
+      flushPara();
+    }
   }
   flushPara();
 
-  // 3) wrap for styling and return
   return `<div class="md">${out.join('\n')}</div>`;
 }
+
 
 
 
@@ -136,14 +144,14 @@ function connectWS() {
   ws.addEventListener('error', (e) => { log('error', e); setStatus('Error', '#ff3860'); });
   ws.addEventListener('close', (e) => { log('close', e.code, e.reason); setStatus('Closed', '#ff3860'); });
 
-  ws.addEventListener('message', (e) => {
-    let data = null; try { data = JSON.parse(e.data); } catch { data = { t: e.data }; }
-    const txt = data?.t || '', isMD = !!data?.md;
-    const nearBottom = mirror.scrollTop + mirror.clientHeight >= mirror.scrollHeight - 8;
-    mirror[isMD ? 'innerHTML' : 'textContent'] = isMD ? renderLiteMD(txt) : (txt || '(waiting…)');
-    if (nearBottom) mirror.scrollTop = mirror.scrollHeight;
-    msgN++; log(`message #${msgN}`, 'len=', txt.length, isMD?'(md)':'(text)', (txt||'').slice(0,120));
-  });
+ws.addEventListener('message', (e) => {
+  let data = null; try { data = JSON.parse(e.data); } catch { data = { t: e.data }; }
+  const txt  = data?.t || '';
+  const html = renderLiteMD(txt);         // <— always render
+  const nearBottom = mirror.scrollTop + mirror.clientHeight >= mirror.scrollHeight - 8;
+  mirror.innerHTML = html;
+  if (nearBottom) mirror.scrollTop = mirror.scrollHeight;
+});
 }
 function teardownWS(){ try { ws?.close(); } catch {} ws=null; setStatus('Idle','#777'); }
 

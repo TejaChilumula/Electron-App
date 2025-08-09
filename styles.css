@@ -110,34 +110,37 @@ html,body{
 
 
 
-/* Make text column a bit narrower (ChatGPT-ish measure) */
+/* Make the text column slightly narrower and readable */
 .mirror { white-space: normal; }
-.mirror .md { max-width: 620px; }
+.mirror .md { max-width: 560px; }  /* was 620; a bit tighter */
 
-/* Tighter vertical rhythm */
-.mirror p        { margin: 6px 0 8px; }
-.mirror h1       { font-size: 1.22rem; margin: 10px 0 6px; font-weight: 600; }
-.mirror h2       { font-size: 1.14rem; margin: 8px 0 6px;  font-weight: 600; }
-.mirror h3       { font-size: 1.06rem; margin: 6px 0 4px;  font-weight: 600; }
+/* Paragraph & heading rhythm */
+.mirror p        { margin: 10px 0; }
+.mirror h1       { font-size: 1.22rem; margin: 12px 0 8px; font-weight: 600; }
+.mirror h2       { font-size: 1.14rem; margin: 10px 0 8px; font-weight: 600; }
+.mirror h3       { font-size: 1.06rem; margin: 8px 0 6px;  font-weight: 600; }
 
-.mirror ul, .mirror ol {
-  margin: 4px 0 8px 1.1em;
-  padding-left: 1em;
+/* Lists: show a clear dash marker */
+.mirror ul { 
+  margin: 6px 0 10px 1.2em; 
+  padding-left: 1.1em; 
+  list-style-position: inside; 
 }
-.mirror li { margin: 3px 0; }
+.mirror ul li::marker { content: "– "; }     /* dash marker */
+.mirror ol {
+  margin: 6px 0 10px 1.2em;
+  padding-left: 1.1em;
+  list-style: decimal inside;
+}
+.mirror li { margin: 4px 0; }
 
+/* Quotes */
 .mirror blockquote {
-  margin: 6px 0 8px;
+  margin: 8px 0 10px;
   padding: 6px 10px;
   border-left: 3px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.04);
   border-radius: 8px;
-}
-
-.mirror hr {
-  border: 0;
-  border-top: 1px solid rgba(255,255,255,0.15);
-  margin: 10px 0;
 }
 
 /* Keep your existing code styles */
