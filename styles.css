@@ -107,3 +107,53 @@ html,body{
 
 /* Utility */
 .hidden{ display:none !important; }
+
+
+
+
+/* Block spacing that feels closer to ChatGPT */
+.mirror p        { margin: 8px 0 10px; }
+.mirror h1       { font-size: 1.25rem; margin: 12px 0 8px; font-weight: 600; }
+.mirror h2       { font-size: 1.15rem; margin: 10px 0 8px; font-weight: 600; }
+.mirror h3       { font-size: 1.05rem; margin: 8px 0 6px;  font-weight: 600; }
+.mirror h4,h5,h6 { font-size: 1rem;    margin: 8px 0 6px;  font-weight: 600; }
+
+.mirror ul, .mirror ol {
+  margin: 6px 0 10px 1.2em;
+  padding: 0 0 0 1em;
+}
+.mirror li { margin: 4px 0; }
+
+.mirror blockquote {
+  margin: 8px 0 10px;
+  padding: 6px 10px;
+  border-left: 3px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+
+.mirror hr {
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  margin: 12px 0;
+}
+
+/* You already have these, but they work great with the new blocks */
+.mirror pre {
+  background:#0b0f14;
+  border:1px solid #1f2632;
+  border-radius:10px;
+  padding:12px;
+  overflow:auto;
+  margin:10px 0;
+}
+.mirror code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size:12px;
+}
+.mirror :not(pre) > code {
+  background: rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:6px;
+  padding:2px 6px;
+}

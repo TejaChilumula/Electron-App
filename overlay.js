@@ -21,24 +21,85 @@ function setStatus(txt, color) {
 }
 
 // lite markdown renderer (bold/italic/inline + fenced)
+// --- smarter markdown renderer: paragraphs, lists, headings, quotes + inline ---
 function renderLiteMD(src) {
+  if (!src) return '';
+
+  // 1) pull out fenced code blocks first
   const fences = [];
   src = src.replace(/```([\w+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const i = fences.push({ lang, code }) - 1;
-    return `\uFFF0${i}\uFFF1`;
+    return `\uFFF0${i}\uFFF1`; // placeholder
   });
+
   const esc = s => s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
-  src = esc(src)
-    .replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`)
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-  src = src.replace(/\uFFF0(\d+)\uFFF1/g, (_, i) => {
-    const { lang, code } = fences[Number(i)];
-    return `<pre><code data-lang="${lang||''}">${esc(code)}</code></pre>`;
-  });
-  return src;
+
+  // inline: backticks, **bold**, *italic*
+  const inline = s =>
+    esc(s)
+      .replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  // 2) split into blocks by blank lines
+  const blocks = src.trim().split(/\n{2,}/);
+
+  const out = [];
+
+  for (let b of blocks) {
+    // restore placeholders inside this block later
+    // (we only treat as placeholder if the whole block is a placeholder)
+    if (/^\uFFF0\d+\uFFF1$/.test(b)) {
+      const i = +b.slice(1, -1); // remove markers
+      const { lang, code } = fences[i];
+      out.push(
+        `<pre><code data-lang="${esc(lang||'')}">${esc(code)}</code></pre>`
+      );
+      continue;
+    }
+
+    // Headings: # .. ######
+    const h = b.match(/^(#{1,6})\s+(.+)$/s);
+    if (h) {
+      const level = h[1].length;
+      out.push(`<h${level}>${inline(h[2].trim())}</h${level}>`);
+      continue;
+    }
+
+    // Blockquote: lines starting with >
+    if (/^>\s+/.test(b)) {
+      const inner = b.replace(/^>\s?/gm, '');             // strip leading >
+      const para  = inline(inner.replace(/\n+/g, ' '));   // join lines inside quote
+      out.push(`<blockquote><p>${para}</p></blockquote>`);
+      continue;
+    }
+
+    // Lists: unordered or ordered (simple, non-nested)
+    if (/^(?:[-*+]\s+.+|\d+\.\s+.+)(?:\n.+)*$/m.test(b)) {
+      const isOrdered = /^\d+\.\s+/.test(b.trim());
+      const tag = isOrdered ? 'ol' : 'ul';
+      const items = [];
+      const re = isOrdered ? /^\s*\d+\.\s+(.+)$/gm : /^\s*[-*+]\s+(.+)$/gm;
+      let m;
+      while ((m = re.exec(b)) !== null) {
+        // keep soft line breaks inside item
+        items.push(`<li>${inline(m[1].replace(/\n+/g, '<br>'))}</li>`);
+      }
+      out.push(`<${tag}>${items.join('')}</${tag}>`);
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^-{3,}$/.test(b.trim())) { out.push('<hr>'); continue; }
+
+    // Paragraph (default): join single newlines to spaces
+    out.push(`<p>${inline(b.replace(/\n+/g, ' '))}</p>`);
+  }
+
+  // 3) done
+  return out.join('\n');
 }
+
 
 // websocket
 function connectWS() {
